@@ -5,7 +5,6 @@ const fs = require('fs');
 const pathMod = require('path');
 
 const patchLogPath = (filePath) => {
-    // Jika script mencoba mengakses atau menulis bot_console.log, alihkan ke folder /tmp
     if (typeof filePath === 'string' && filePath.includes('bot_console.log')) {
         return pathMod.join('/tmp', 'bot_console.log');
     }
@@ -34,9 +33,9 @@ fs.readFileSync = function (fp, ...args) {
 // =====================================================================
 
 const TelegramBot = require('node-telegram-bot-api');
-const settings = require('./config.js');[span_3](start_span)[span_3](end_span)
-const consoleDisplay = require('./console.display.js');[span_4](start_span)[span_4](end_span)
-const database = require('./lib/database.js');[span_5](start_span)[span_5](end_span)
+const settings = require('./config.js');
+const consoleDisplay = require('./console.display.js');
+const database = require('./lib/database.js');
 
 // Inisialisasi bot (polling: false untuk Webhook Vercel)
 const bot = new TelegramBot(settings.token, { 
@@ -49,7 +48,7 @@ const bot = new TelegramBot(settings.token, {
 // Show banner on start
 consoleDisplay.showBanner();
 
-// Global state management (dipindahkan dari main.js)
+// Global state management
 const userStates = {};
 
 // Helper functions yang digunakan oleh semua command files
@@ -123,7 +122,7 @@ Note: Hanya premium/access users boleh pakai</blockquote>
 const getStartMessage = (userId, userName) => {
     return `<blockquote>👋 Olá @${userName}</blockquote>
 「🤖 Telegram Auto Report Bot」
-<blockquote>𝙄𝙣𝙛𝙣𝙧𝙢𝙖𝙩𝙞𝙤𝙣:
+<blockquote>𝙄𝙣𝙛𝙤𝙧𝙢𝙖𝙩𝙞𝙤𝙣:
 ケ ボット名 : GyzenLyoraa
 ケ 開発者 : GyzenOfficial.t.me
 ケ バージョン : 1.0.0
@@ -168,7 +167,7 @@ const getReportStartMessage = (type, target, reason, count, percentage) => {
     const progressBar = getProgressBar(percentage);
     const moduleName = `REPORT ${type.toUpperCase()}`;
     
-    return `<blockquote>⌜🜲 𝙍𝙚λα𝙩𝙤𝙧𝙞𝙤𝙨⌟
+    return `<blockquote>⌜🜲 𝙍𝙚𝙡𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
 <i>Elite Report System</i>
 
 ⚘ <b>${moduleName}</b>
@@ -305,9 +304,9 @@ async function simulateReportWithProgress(chatId, userId, type, target, reason, 
 }
 
 // Load semua command files
-require('./commands/main.js')(bot, database, settings, consoleDisplay, userStates, helpers, getStartMessage, getMenuMessage);[span_6](start_span)[span_6](end_span)
-require('./commands/report.js')(bot, database, settings, consoleDisplay, userStates, helpers);[span_7](start_span)[span_7](end_span)
-require('./commands/admin.js')(bot, database, settings, consoleDisplay, helpers);[span_8](start_span)[span_8](end_span)
+require('./commands/main.js')(bot, database, settings, consoleDisplay, userStates, helpers, getStartMessage, getMenuMessage);
+require('./commands/report.js')(bot, database, settings, consoleDisplay, userStates, helpers);
+require('./commands/admin.js')(bot, database, settings, consoleDisplay, helpers);
 
 // Handler utama Vercel Serverless Webhook
 module.exports = async (req, res) => {
