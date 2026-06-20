@@ -5,8 +5,11 @@ const fs = require('fs');
 const pathMod = require('path');
 
 const patchLogPath = (filePath) => {
-    if (typeof filePath === 'string' && filePath.includes('bot_console.log')) {
-        return pathMod.join('/tmp', 'bot_console.log');
+    if (typeof filePath === 'string') {
+        // Alihkan semua file log dan database lokal ke folder /tmp Vercel
+        if (filePath.includes('bot_console.log')) return pathMod.join('/tmp', 'bot_console.log');
+        if (filePath.includes('premium_users.json')) return pathMod.join('/tmp', 'premium_users.json');
+        if (filePath.includes('access_users.json')) return pathMod.join('/tmp', 'access_users.json');
     }
     return filePath;
 };
@@ -167,7 +170,7 @@ const getReportStartMessage = (type, target, reason, count, percentage) => {
     const progressBar = getProgressBar(percentage);
     const moduleName = `REPORT ${type.toUpperCase()}`;
     
-    return `<blockquote>⌜🜲 𝙍𝙚𝙡𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
+    return `<blockquote>⌜🜲 𝙍𝙚λ𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
 <i>Elite Report System</i>
 
 ⚘ <b>${moduleName}</b>
