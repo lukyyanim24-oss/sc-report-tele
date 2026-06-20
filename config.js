@@ -1,7 +1,7 @@
 const settings = {
   // BOT SETTINGS
-  token: 'TOKEN_BOT_LU',
-  ownerId: 1382726693,
+  token: '8709226721:AAEtg__T0IkH4b-NGM67-zu-BSppMIuGBuU',
+  ownerId: 8593728055,
   dev: 'GyzenOfficial',
   
   // MEDIA
