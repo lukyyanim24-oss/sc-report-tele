@@ -1,9 +1,44 @@
-const TelegramBot = require('node-telegram-bot-api');
-const settings = require('./config.js');
-const consoleDisplay = require('./console.display.js');
-const database = require('./lib/database.js');
+// =====================================================================
+// 🛠️ VERCEL READ-ONLY FIX (Taruh di paling atas sebelum mengimpor apapun)
+// =====================================================================
+const fs = require('fs');
+const pathMod = require('path');
 
-// 1. UBAH DI SINI: Matikan polling (polling: false) agar tidak crash di serverless Vercel
+const patchLogPath = (filePath) => {
+    // Jika script mencoba mengakses atau menulis bot_console.log, alihkan ke folder /tmp
+    if (typeof filePath === 'string' && filePath.includes('bot_console.log')) {
+        return pathMod.join('/tmp', 'bot_console.log');
+    }
+    return filePath;
+};
+
+const originalWriteFileSync = fs.writeFileSync;
+fs.writeFileSync = function (fp, ...args) {
+    return originalWriteFileSync(patchLogPath(fp), ...args);
+};
+
+const originalAppendFileSync = fs.appendFileSync;
+fs.appendFileSync = function (fp, ...args) {
+    return originalAppendFileSync(patchLogPath(fp), ...args);
+};
+
+const originalExistsSync = fs.existsSync;
+fs.existsSync = function (fp) {
+    return originalExistsSync(patchLogPath(fp));
+};
+
+const originalReadFileSync = fs.readFileSync;
+fs.readFileSync = function (fp, ...args) {
+    return originalReadFileSync(patchLogPath(fp), ...args);
+};
+// =====================================================================
+
+const TelegramBot = require('node-telegram-bot-api');
+const settings = require('./config.js');[span_3](start_span)[span_3](end_span)
+const consoleDisplay = require('./console.display.js');[span_4](start_span)[span_4](end_span)
+const database = require('./lib/database.js');[span_5](start_span)[span_5](end_span)
+
+// Inisialisasi bot (polling: false untuk Webhook Vercel)
 const bot = new TelegramBot(settings.token, { 
   polling: false,
   request: {
@@ -133,7 +168,7 @@ const getReportStartMessage = (type, target, reason, count, percentage) => {
     const progressBar = getProgressBar(percentage);
     const moduleName = `REPORT ${type.toUpperCase()}`;
     
-    return `<blockquote>⌜🜲 𝙍𝙚𝙡𝙖𝙩ο𝙧𝙞𝙤𝙨⌟
+    return `<blockquote>⌜🜲 𝙍𝙚λα𝙩𝙤𝙧𝙞𝙤𝙨⌟
 <i>Elite Report System</i>
 
 ⚘ <b>${moduleName}</b>
@@ -208,8 +243,7 @@ async function simulateReportWithProgress(chatId, userId, type, target, reason, 
     let failed = 0;
     const totalCount = count;
     
-    // Update progress setiap 2-5 detik (lebih lambat)
-    const updateInterval = 3000 + Math.random() * 2000; // 3-5 detik
+    const updateInterval = 3000 + Math.random() * 2000;
     let lastUpdateTime = 0;
     
     const reportInterval = setInterval(async () => {
@@ -219,14 +253,11 @@ async function simulateReportWithProgress(chatId, userId, type, target, reason, 
         }
         lastUpdateTime = currentTime;
         
-        // Update progress
         const current = success + failed;
         
-        // Stop jika sudah selesai
         if (current >= totalCount) {
             clearInterval(reportInterval);
             
-            // Update final message
             try {
                 await bot.editMessageCaption(
                     getReportCompleteMessage(type, target, reason, totalCount, success, failed),
@@ -240,27 +271,22 @@ async function simulateReportWithProgress(chatId, userId, type, target, reason, 
                 console.log('Error editing final message:', error.message);
             }
             
-            // Log ke console
             consoleDisplay.logReport(userId, target, type, totalCount, success > 0);
             return;
         }
         
-        // Simulasi report (85% success rate)
         if (Math.random() < 0.85) {
             success++;
         } else {
             failed++;
         }
         
-        // Hitung progress
         const newCurrent = success + failed;
         const percentage = Math.min(99, Math.floor((newCurrent / totalCount) * 100));
         
-        // Hitung estimated time (dalam menit)
         const remaining = totalCount - newCurrent;
         const estimatedTime = Math.max(1, Math.round((remaining * updateInterval / 1000 / 60)));
         
-        // Update progress message setiap 5 report atau jika progress signifikan
         if (newCurrent % 5 === 0 || percentage % 10 === 0 || newCurrent === totalCount) {
             try {
                 await bot.editMessageCaption(
@@ -275,25 +301,23 @@ async function simulateReportWithProgress(chatId, userId, type, target, reason, 
                 console.log('Error editing progress message:', error.message);
             }
         }
-    }, 1000); // Check every second, but update based on random interval
+    }, 1000);
 }
 
 // Load semua command files
-require('./commands/main.js')(bot, database, settings, consoleDisplay, userStates, helpers, getStartMessage, getMenuMessage);
-require('./commands/report.js')(bot, database, settings, consoleDisplay, userStates, helpers);
-require('./commands/admin.js')(bot, database, settings, consoleDisplay, helpers);
+require('./commands/main.js')(bot, database, settings, consoleDisplay, userStates, helpers, getStartMessage, getMenuMessage);[span_6](start_span)[span_6](end_span)
+require('./commands/report.js')(bot, database, settings, consoleDisplay, userStates, helpers);[span_7](start_span)[span_7](end_span)
+require('./commands/admin.js')(bot, database, settings, consoleDisplay, helpers);[span_8](start_span)[span_8](end_span)
 
-// 2. UBAH DI SINI: Bagian bawah dirombak total menjadi Handler Webhook Vercel Serverless
+// Handler utama Vercel Serverless Webhook
 module.exports = async (req, res) => {
     try {
         if (req.method === 'POST') {
-            // Telegram mengirim data update lewat POST request ke Webhook
             if (req.body && req.body.update_id) {
                 bot.processUpdate(req.body);
             }
             return res.status(200).json({ status: 'success', message: 'Update diproses' });
         } else {
-            // Jika diakses via browser biasa (GET)
             return res.status(200).send(`
                 <div style="text-align: center; margin-top: 15%; font-family: 'Segoe UI', sans-serif;">
                     <h1 style="color: #24292e;">SC AUTO REPORT TELEGRAM [ GYZEN ]</h1>
