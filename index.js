@@ -38,7 +38,6 @@ fs.readFileSync = function (fp, ...args) {
 // =====================================================================
 process.on('unhandledRejection', (reason, promise) => {
     const errorMsg = reason?.message || String(reason);
-    // Jika error disebabkan oleh tombol/query Telegram yang kedaluwarsa atau pesan tidak berubah, abaikan saja agar tidak crash
     if (errorMsg.includes('query is too old') || errorMsg.includes('message is not modified')) {
         console.log('⚠️ [Telegram Warning] Ignored non-fatal API error:', errorMsg);
         return;
@@ -124,12 +123,14 @@ Note: Hanya premium/access users boleh pakai</blockquote>
             bot.sendMessage(chatId, `📢 ${accessMessage}`);
         }
         
+        // 1. Kirim status awalan (Initializing)
         const initialMessage = await bot.sendPhoto(chatId, settings.panel, {
             caption: getReportStartMessage(type, target, reason, count, 0),
             parse_mode: 'HTML'
         });
         
-        simulateReportWithProgress(chatId, userId, type, target, reason, count, initialMessage.message_id);
+        // 2. Langsung panggil fungsi proses instan tanpa setInterval
+        executeInstantReport(chatId, userId, type, target, reason, count, initialMessage.message_id);
     }
 };
 
@@ -196,39 +197,6 @@ ${progressBar} ${percentage}%
 <code>INITIALIZING REPORT SEQUENCE</code></blockquote>`;
 };
 
-// Function untuk progress message
-const getReportProgressMessage = (type, target, reason, count, percentage, success, failed, estimatedTime) => {
-    const progressBar = getProgressBar(percentage);
-    const moduleName = `REPORT ${type.toUpperCase()}`;
-    const current = success + failed;
-    
-    let statusText = '';
-    if (percentage < 30) {
-        statusText = 'SCANNING TARGET';
-    } else if (percentage < 60) {
-        statusText = 'PREPARING REPORTS';
-    } else if (percentage < 90) {
-        statusText = 'SENDING REPORTS';
-    } else {
-        statusText = 'FINALIZING';
-    }
-    
-    return `<blockquote>⌜🜲 𝙍𝙚𝙡𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
-<i>Elite Report System</i>
-
-⚘ <b>${moduleName}</b>
-
-📌 Target: ${target}
-✅ Success: ${success}
-❌ Failed: ${failed}
-📊 Progress: ${current}/${count}
-⏱️ Estimated: ${estimatedTime} mins
-
-${progressBar} ${percentage}%
-
-<code>${statusText} • ${current}/${count} COMPLETE</code></blockquote>`;
-};
-
 // Function untuk completion message
 const getReportCompleteMessage = (type, target, reason, count, success, failed) => {
     const moduleName = `REPORT ${type.toUpperCase()}`;
@@ -251,71 +219,27 @@ ${progressBar} ${percentage}%
 <code>REPORT COMPLETED • SECURE • STABLE • ELITE</code></blockquote>`;
 };
 
-// Function simulateReport dengan progress bar dan edit message
-async function simulateReportWithProgress(chatId, userId, type, target, reason, count, messageId) {
-    let success = 0;
-    let failed = 0;
-    const totalCount = count;
+// 🔥 VERSI VERCEL: Proses dibikin instan seketika agar tidak dibekukan sistem Serverless
+async function executeInstantReport(chatId, userId, type, target, reason, count, messageId) {
+    // Hitung estimasi sukses & gagal secara acak langsung di awal
+    const success = Math.round(count * (0.85 + Math.random() * 0.1)); 
+    const failed = count - success;
     
-    const updateInterval = 3000 + Math.random() * 2000;
-    let lastUpdateTime = 0;
+    try {
+        // Langsung edit pesan menjadi 100% Selesai
+        await bot.editMessageCaption(
+            getReportCompleteMessage(type, target, reason, count, success, failed),
+            {
+                chat_id: chatId,
+                message_id: messageId,
+                parse_mode: 'HTML'
+            }
+        );
+    } catch (error) {
+        console.log('Error editing final message:', error.message);
+    }
     
-    const reportInterval = setInterval(async () => {
-        const currentTime = Date.now();
-        if (currentTime - lastUpdateTime < updateInterval) {
-            return;
-        }
-        lastUpdateTime = currentTime;
-        
-        const current = success + failed;
-        
-        if (current >= totalCount) {
-            clearInterval(reportInterval);
-            
-            try {
-                await bot.editMessageCaption(
-                    getReportCompleteMessage(type, target, reason, totalCount, success, failed),
-                    {
-                        chat_id: chatId,
-                        message_id: messageId,
-                        parse_mode: 'HTML'
-                    }
-                );
-            } catch (error) {
-                console.log('Error editing final message:', error.message);
-            }
-            
-            consoleDisplay.logReport(userId, target, type, totalCount, success > 0);
-            return;
-        }
-        
-        if (Math.random() < 0.85) {
-            success++;
-        } else {
-            failed++;
-        }
-        
-        const newCurrent = success + failed;
-        const percentage = Math.min(99, Math.floor((newCurrent / totalCount) * 100));
-        
-        const remaining = totalCount - newCurrent;
-        const estimatedTime = Math.max(1, Math.round((remaining * updateInterval / 1000 / 60)));
-        
-        if (newCurrent % 5 === 0 || percentage % 10 === 0 || newCurrent === totalCount) {
-            try {
-                await bot.editMessageCaption(
-                    getReportProgressMessage(type, target, reason, totalCount, percentage, success, failed, estimatedTime),
-                    {
-                        chat_id: chatId,
-                        message_id: messageId,
-                        parse_mode: 'HTML'
-                    }
-                );
-            } catch (error) {
-                console.log('Error editing progress message:', error.message);
-            }
-        }
-    }, 1000);
+    consoleDisplay.logReport(userId, target, type, count, success > 0);
 }
 
 // Load semua command files
@@ -328,7 +252,6 @@ module.exports = async (req, res) => {
     try {
         if (req.method === 'POST') {
             if (req.body && req.body.update_id) {
-                // Jalankan update asinkronus secara aman dan tangkap error internalnya jika ada
                 bot.processUpdate(req.body);
             }
             return res.status(200).json({ status: 'success', message: 'Update diproses' });
