@@ -6,7 +6,6 @@ const pathMod = require('path');
 
 const patchLogPath = (filePath) => {
     if (typeof filePath === 'string') {
-        // Alihkan semua file log dan database lokal ke folder /tmp Vercel
         if (filePath.includes('bot_console.log')) return pathMod.join('/tmp', 'bot_console.log');
         if (filePath.includes('premium_users.json')) return pathMod.join('/tmp', 'premium_users.json');
         if (filePath.includes('access_users.json')) return pathMod.join('/tmp', 'access_users.json');
@@ -33,6 +32,23 @@ const originalReadFileSync = fs.readFileSync;
 fs.readFileSync = function (fp, ...args) {
     return originalReadFileSync(patchLogPath(fp), ...args);
 };
+
+// =====================================================================
+// 🛡️ GLOBAL ANTI-CRASH HANDLER (Mencegah Vercel mati akibat timeout Telegram)
+// =====================================================================
+process.on('unhandledRejection', (reason, promise) => {
+    const errorMsg = reason?.message || String(reason);
+    // Jika error disebabkan oleh tombol/query Telegram yang kedaluwarsa atau pesan tidak berubah, abaikan saja agar tidak crash
+    if (errorMsg.includes('query is too old') || errorMsg.includes('message is not modified')) {
+        console.log('⚠️ [Telegram Warning] Ignored non-fatal API error:', errorMsg);
+        return;
+    }
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception thrown:', error.message);
+});
 // =====================================================================
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -65,7 +81,6 @@ const helpers = {
             return true;
         }
         
-        // Kirim dengan photo dari config
         bot.sendPhoto(chatId, settings.panel, {
             caption: '❌ *Akses Ditolak!*\n\n' +
             'Hanya premium/access users yang boleh menggunakan fitur report.\n\n' +
@@ -105,18 +120,15 @@ Note: Hanya premium/access users boleh pakai</blockquote>
     },
     
     startReportProcess: async (chatId, userId, type, target, reason, count, accessMessage) => {
-        // Kirim notifikasi access digunakan
         if (accessMessage && !accessMessage.includes('habis')) {
             bot.sendMessage(chatId, `📢 ${accessMessage}`);
         }
         
-        // Kirim pesan awal dengan photo dari config
         const initialMessage = await bot.sendPhoto(chatId, settings.panel, {
             caption: getReportStartMessage(type, target, reason, count, 0),
             parse_mode: 'HTML'
         });
         
-        // Simulasi report process dengan progress bar
         simulateReportWithProgress(chatId, userId, type, target, reason, count, initialMessage.message_id);
     }
 };
@@ -170,7 +182,7 @@ const getReportStartMessage = (type, target, reason, count, percentage) => {
     const progressBar = getProgressBar(percentage);
     const moduleName = `REPORT ${type.toUpperCase()}`;
     
-    return `<blockquote>⌜🜲 𝙍𝙚λ𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
+    return `<blockquote>⌜🜲 𝙍𝙚𝙡𝙖𝙩𝙤𝙧𝙞𝙤𝙨⌟
 <i>Elite Report System</i>
 
 ⚘ <b>${moduleName}</b>
@@ -316,6 +328,7 @@ module.exports = async (req, res) => {
     try {
         if (req.method === 'POST') {
             if (req.body && req.body.update_id) {
+                // Jalankan update asinkronus secara aman dan tangkap error internalnya jika ada
                 bot.processUpdate(req.body);
             }
             return res.status(200).json({ status: 'success', message: 'Update diproses' });
