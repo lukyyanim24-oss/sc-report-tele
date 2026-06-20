@@ -1,0 +1,20 @@
+{
+  "name": "telegram-report-bot",
+  "version": "1.0.0",
+  "description": "Telegram Auto Report Bot",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "logs": "tail -f bot_console.log",
+    "install-deps": "npm install"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.64.0",
+    "moment": "^2.29.4"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=7.0.0"
+  }
+}
